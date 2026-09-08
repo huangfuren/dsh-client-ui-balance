@@ -1,33 +1,44 @@
 {
-  "extends": "../../../tsconfig.base.client.json",
+  // Standalone config. This package was extracted from the DeepSeek Harness
+  // monorepo, where it lived at packages/client/ui-balance: the original
+  // `extends` (../../../tsconfig.base.client.json), `references` (../locale,
+  // ../runtime, ../../../vendor/cordis, ...) and the repo-root `paths` map all
+  // resolved through monorepo-relative paths that do not exist here.
+  //
+  // The effective options from tsconfig.base.json + tsconfig.base.client.json
+  // are inlined below; dependencies now resolve from node_modules instead of
+  // project references.
   "compilerOptions": {
+    "target": "es2024",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+
     "rootDir": "src",
-    "outDir": "lib/types"
+    "outDir": "lib/types",
+
+    // Sources import with explicit extensions ('./locales.ts'); that needs
+    // allowImportingTsExtensions, which in turn requires noEmit or
+    // emitDeclarationOnly. The JavaScript half is produced by tsdown, so tsc
+    // only has to regenerate the .d.ts tree under lib/types.
+    "declaration": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": true,
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+
+    "esModuleInterop": true,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "verbatimModuleSyntax": false,
+    "skipLibCheck": true
   },
-  "include": [
-    "src"
-  ],
-  "references": [
-    {
-      "path": "../../../vendor/cordis"
-    },
-    {
-      "path": "../locale"
-    },
-    {
-      "path": "../runtime"
-    },
-    {
-      "path": "../ui-slots"
-    },
-    {
-      "path": "../ui-conversation"
-    },
-    {
-      "path": "../../api/remotes/tsconfig.client.json"
-    },
-    {
-      "path": "../../runtime-diagnostics/invariants"
-    }
-  ]
+  "include": ["src"]
 }
