@@ -1,24 +1,34 @@
 # @deepseek-ai/dsh-client-ui-balance
 
-English | [中文](README.zh.md)
+中文 | [English](README.en.md)
 
-Web provider API-balance feature owner: contributes one entry to the conversation session-header utility row (`conversation.session.header.utilities`) — a compact capsule beside the session's other header tools showing the active model provider's account balance, with an expandable detail panel. Living in the header's flex row keeps it from ever overlapping the neighboring session tools. The data arrives through the `llm.balance` RPC, so this package holds no provider state of its own: the host resolves the provider's connection facts and credential, calls the provider's account endpoint, and ships a projected snapshot (never the key) back over the wire.
+> ⚠️ **归档说明**
+>
+> 本包依赖 `llm.balance` RPC 与 `LlmBalanceView` 类型。该 API 截至
+> `@deepseek-ai/dsh-api-remotes@0.1.3-alpha.2` **尚未发布**，目前仅存在于
+> DeepSeek Harness 的本地开发分支中。因此：
+>
+> - 本仓库定位为**归档与分享**，独立 checkout 无法完成类型检查或构建
+> - 实际开发请在 harness monorepo 的 `packages/client/ui-balance/` 中进行
+> - 待上游发布含 balance 能力的 `dsh-api-remotes` 后，本仓库才可独立构建
 
-The capsule refetches on a fixed 60-second cadence, on window focus and visibility restore, and immediately when a pushed invalidation arrives (`credentials/updated`, `llm/adapters-updated`, or a `connection/reset`) — so a key change or provider swap is reflected without waiting for the next poll tick. Each in-flight query carries a 15-second abort so a hung provider never leaves the capsule stale forever; a superseded or unmounted response never overwrites newer state.
+Web 端模型提供方 API 余额展示功能：向会话标题栏工具区（`conversation.session.header.utilities`）贡献一个入口——与会话其他工具胶囊并排的紧凑余额胶囊，以及可展开的明细面板。胶囊位于标题栏的 flex 行内，因此不会与相邻的会话工具发生重叠。数据全部经由 `llm.balance` RPC 获取，本包不持有任何提供方状态：由宿主解析提供方的连接信息与凭据、调用提供方账户接口，并将投影后的快照（绝不含密钥）回传。
 
-The capsule shows the primary balance (first per-currency row) when the provider supports balance queries, a muted word when it does not, and the query failure when the provider refused one — the host's own error text is the diagnosis (bad key, endpoint down). Clicking expands a panel with the availability state, one row per currency (total, granted, and topped-up portions when the provider discloses them), the answering provider route, the last-updated time, a manual refresh, and a link to the DeepSeek platform usage page. The panel closes on Escape or a pointer press outside it. Styling uses theme tokens only; copy goes through the package's own `balance` locale namespace.
+胶囊按固定 60 秒周期轮询刷新，并在窗口聚焦、页面恢复可见时立即刷新；当推送失效事件到达（`credentials/updated`、`llm/adapters-updated` 或 `connection/reset`）时也会立即刷新——因此修改 API Key 或切换提供方后无需等待下一个轮询周期即可反映。每次进行中的查询带有 15 秒超时中止，避免提供方挂起导致胶囊长期过期；被新请求取代或组件卸载后的过期响应不会覆盖较新的状态。
 
-## Model Experience
+当提供方支持余额查询时，胶囊显示主余额（第一个币种行）；不支持时显示弱化的提示文案；查询被拒（如 Key 无效、端点不可达）时显示失败状态，宿主返回的原始错误文本即为诊断信息。点击可展开面板，展示账户可用状态、按币种分行（总额、赠送与充值部分，提供方披露时显示）、应答的提供方路由、最近更新时间、手动刷新按钮，以及 DeepSeek 平台用量页链接。面板可通过 Esc 或点击面板外部关闭。样式仅使用主题令牌；文案走本包自有的 `balance` 语言命名空间。
 
-None, as this package renders host-computed provider account state for a human and touches no prompt, message, schema, stream, or tool result. The model's own view of provider costs stays with the token meter.
+## 模型体验
 
-#### KV Cache effect
+无：本包仅向人类展示宿主计算出的提供方账户状态，不接触任何提示词、消息、模式、流或工具结果。模型对提供方成本的感知仍由 token 计量负责。
 
-None; the package never assembles or sends provider requests.
+#### KV 缓存影响
 
-## Known Limitations and Deferred Work
+无：本包从不组装或发送提供方请求。
 
-- **DeepSeek-only account endpoint** — the balance capability is implemented by `llm-deepseek`'s adapter (`GET {baseURL}/user/balance`); providers whose adapters do not implement `queryBalance` answer `supported: false` and the capsule shows a muted state rather than failing.
-- **Amounts are provider strings** — the host forwards the provider's decimal strings verbatim and the capsule formats them with `Intl.NumberFormat`; a currency code `Intl` rejects falls back to `CODE value`.
-- **The capsule queries the first registered provider that can answer** when no route is named — a deployment with several providers shows one account. A future provider-picker surface could name the route explicitly.
-- **Session-header scoped** — the entry renders inside the conversation session header, so a blank session's hidden chrome also hides the balance capsule (matching the other header tools).
+## 已知限制与待办
+
+- **仅 DeepSeek 账户端点** —— 余额能力由 `llm-deepseek` 适配器实现（`GET {baseURL}/user/balance`）；未实现 `queryBalance` 的提供方适配器返回 `supported: false`，胶囊显示弱化状态而非报错。
+- **金额为提供方原始字符串** —— 宿主原样转发提供方的十进制字符串，胶囊使用 `Intl.NumberFormat` 格式化；`Intl` 无法识别的币种代码回退为 `CODE 金额`。
+- **未指定路由时查询首个可应答的已注册提供方** —— 部署多个提供方时只展示一个账户。未来的提供方选择器界面可显式指定路由。
+- **随会话标题栏显示** —— 入口渲染在会话标题栏内，空白会话隐藏标题栏时余额胶囊也随之隐藏（与其他标题栏工具一致）。
