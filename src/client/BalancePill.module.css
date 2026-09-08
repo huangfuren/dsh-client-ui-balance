@@ -1,0 +1,225 @@
+.root {
+  /* Header-utility capsule: lives in the session header's flex row, so it
+     never floats over (or overlaps) the neighboring session tools. The
+     dropdown panel is positioned relative to this root. */
+  position: relative;
+  display: inline-flex;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  min-height: 28px;
+  padding: 3px 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 6px;
+  /* Opaque self-surface + primary label: the capsule must stay legible on
+     ANY header/detail background (light, dark, sidebar fill, …), so it
+     never relies on the surrounding backdrop for contrast. */
+  background: var(--dsw-alias-button-floating-fill);
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pill:hover,
+.pill:focus-visible {
+  background: var(--dsw-alias-button-floating-hover);
+  border-color: var(--dsw-alias-border-l3);
+  color: var(--dsw-alias-label-primary);
+}
+
+.amount {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Availability dot: green when the account answers, amber when it is
+   unavailable, red when the query itself failed, neutral when unsupported. */
+.dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dsw-alias-state-success-primary);
+}
+
+.dot[data-state='warn'] {
+  background: var(--dsw-alias-state-warn-primary);
+}
+
+.dot[data-state='error'] {
+  background: var(--dsw-alias-state-error-primary);
+}
+
+.dot[data-state='muted'] {
+  background: var(--dsw-alias-label-caption);
+}
+
+.panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  width: 280px;
+  max-width: calc(100vw - 24px);
+  padding: 10px 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-overlay);
+  color: var(--dsw-alias-label-primary);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.panelTitle {
+  font-weight: 600;
+}
+
+.iconButton {
+  border: 0;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+  line-height: 1;
+}
+
+.iconButton:hover,
+.iconButton:focus-visible {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 8px;
+  align-items: baseline;
+  padding: 6px 0;
+  border-top: 1px solid var(--dsw-alias-border-l1);
+}
+
+.rowCurrency {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.rowValue {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.rowBreakdown {
+  grid-column: 1 / -1;
+  color: var(--dsw-alias-label-caption);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panelFooter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--dsw-alias-border-l1);
+}
+
+.meta {
+  color: var(--dsw-alias-label-caption);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta:first-child {
+  flex: 1;
+}
+
+.muted {
+  color: var(--dsw-alias-label-tertiary);
+  margin: 4px 0;
+}
+
+.errorBlock {
+  margin: 4px 0;
+}
+
+.errorText {
+  color: var(--dsw-alias-state-error-primary);
+  margin: 0 0 2px;
+}
+
+.errorDetail {
+  color: var(--dsw-alias-label-tertiary);
+  margin: 0;
+  word-break: break-word;
+}
+
+.refresh {
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 6px;
+  background: var(--dsw-alias-button-floating-fill);
+  color: var(--dsw-alias-label-secondary);
+  padding: 2px 8px;
+  cursor: pointer;
+  flex: none;
+}
+
+.refresh:hover,
+.refresh:focus-visible {
+  background: var(--dsw-alias-button-floating-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.refresh:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Official provider usage/billing page: opens in a new tab. */
+.usageLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  text-decoration: none;
+}
+
+.usageLink:hover,
+.usageLink:focus-visible {
+  color: var(--dsw-alias-label-primary);
+  text-decoration: underline;
+}
