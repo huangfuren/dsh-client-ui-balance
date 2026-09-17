@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-balance",
   "description": "Real-time provider API balance capsule: conversation session-header utility polling llm.balance with an expandable detail panel",
-  "version": "0.1.1",
+  "version": "0.3.0",
   "publishConfig": {
     "access": "public"
   },

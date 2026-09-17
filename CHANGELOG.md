@@ -3,7 +3,9 @@
 All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## 0.1.1 — 2026-09-17
+## 0.3.0 — 2026-09-17
+
+> 本版本为此后迭代的基线版本。
 
 ### Fixed
 
