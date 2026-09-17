@@ -2,15 +2,20 @@
 
 中文 | [English](README.en.md)
 
-> ⚠️ **归档说明**
+> ✅ **状态：可用**（原"归档说明"已作废）
 >
-> 本包依赖 `llm.balance` RPC 与 `LlmBalanceView` 类型。该 API 截至
-> `@deepseek-ai/dsh-api-remotes@0.1.3-alpha.2` **尚未发布**，目前仅存在于
-> DeepSeek Harness 的本地开发分支中。因此：
+> 本包依赖的 `llm.balance` RPC 与 `LlmBalanceView` 类型自
+> `@deepseek-ai/dsh-api-remotes@0.1.5-rc.2` 起**已正式发布**，本插件已完成迁移
+> 并在 dsh `0.1.5-rc.2` 上实测可用（会话标题栏右侧显示余额胶囊）。
 >
-> - 本仓库定位为**归档与分享**，独立 checkout 无法完成类型检查或构建
-> - 实际开发请在 harness monorepo 的 `packages/client/ui-balance/` 中进行
-> - 待上游发布含 balance 能力的 `dsh-api-remotes` 后，本仓库才可独立构建
+> **历史**：本包早期标为"归档"，因当时 balance API 尚未发布。该前提已不成立。
+>
+> **兼容性**：已在 `0.1.5-rc.2` 验证，peer 范围 `>=0.1.1-rc.2 <0.3.0`。
+> 若宿主未来移除或改名 `slots` / `locale` / `remote.llm`，胶囊会**自动降级消失**
+> 并打印一条 `[ui-balance]` 告警，**不会**拖垮同槽位的其他会话标题栏工具。
+>
+> **构建**：`lib/` 是 tsdown 产物。本包 devDependencies 不含 `tsdown`，
+> 独立 checkout 默认无法构建；修改请同步 `src/` 与 `lib/`，重启 dsh 即可生效。
 
 Web 端模型提供方 API 余额展示功能：向会话标题栏工具区（`conversation.session.header.utilities`）贡献一个入口——与会话其他工具胶囊并排的紧凑余额胶囊，以及可展开的明细面板。胶囊位于标题栏的 flex 行内，因此不会与相邻的会话工具发生重叠。数据全部经由 `llm.balance` RPC 获取，本包不持有任何提供方状态：由宿主解析提供方的连接信息与凭据、调用提供方账户接口，并将投影后的快照（绝不含密钥）回传。
 

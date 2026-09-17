@@ -7,7 +7,7 @@
  * row keeps it from ever overlapping the neighboring session tools.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { IApiClient, LlmBalanceView } from '@deepseek-ai/dsh-api-remotes/client'
+import type { LlmBalanceView, RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
 import type { HostObservable, InjectFace, PropsRuntime, TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import { NS } from './locales.ts'
 import css from './BalancePill.module.css'
@@ -17,9 +17,10 @@ const POLL_INTERVAL_MS = 60_000
 /** Abort one balance query that has not settled in time. */
 const QUERY_TIMEOUT_MS = 15_000
 
-/** Inject face delivered by the plugin: the wire client, copy, and the invalidation tick source. */
+/** Inject face delivered by the plugin: the balance query, copy, and the invalidation tick source. */
 export interface BalanceInjected {
-  api: IApiClient
+  /** One provider balance query; an empty provider asks the first route that can answer. */
+  query: (signal?: AbortSignal) => Promise<RemoteResult<LlmBalanceView>>
   t: TranslateNS<typeof NS>
   hooks: { balance: HostObservable<number> }
 }
@@ -47,9 +48,9 @@ function formatAmount(value: string, currency: string): string {
 /**
  * The header-utility entry. Renders a capsule with the primary amount (or a
  * muted unsupported/error word) and a popover with the full picture.
- * @param props - runtime share plus the injected api/copy/tick face.
+ * @param props - runtime share plus the injected query/copy/tick face.
  */
-export function BalancePill({ api, t, useBalance }: BalancePillProps) {
+export function BalancePill({ query, t, useBalance }: BalancePillProps) {
   const tick = useBalance(snapshot => snapshot)
   const [view, setView] = useState<LlmBalanceView | undefined>(undefined)
   const [error, setError] = useState<string | undefined>(undefined)
@@ -65,15 +66,15 @@ export function BalancePill({ api, t, useBalance }: BalancePillProps) {
     setLoading(true)
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), QUERY_TIMEOUT_MS)
-    void api.llm.balance({}, controller.signal).then((response) => {
+    void query(controller.signal).then((response) => {
       if (request !== seq.current) return
       clearTimeout(timer)
-      if (response.result.ok) {
-        setView(response.result.value)
+      if (response.ok) {
+        setView(response.value)
         setError(undefined)
       } else {
         setView(undefined)
-        setError(response.result.error.message)
+        setError(response.error.message)
       }
       setLoading(false)
     }).catch(() => {
@@ -83,7 +84,7 @@ export function BalancePill({ api, t, useBalance }: BalancePillProps) {
       clearTimeout(timer)
       setLoading(false)
     })
-  }, [api])
+  }, [query])
 
   useEffect(() => {
     refresh()
