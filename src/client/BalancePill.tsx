@@ -7,7 +7,9 @@
  * row keeps it from ever overlapping the neighboring session tools.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { LlmBalanceView, RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
+// The balance vocabulary is owned by this package now: no shared remotes library
+// describes a balance view any more, and the node half answers in this shape.
+import type { LlmBalanceView, RemoteResult } from './index.ts'
 import type { HostObservable, InjectFace, PropsRuntime, TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import { NS } from './locales.ts'
 import css from './BalancePill.module.css'
