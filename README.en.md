@@ -1,6 +1,6 @@
 # @deepseek-ai/dsh-client-ui-balance
 
-[中文](README.md) | English
+English | [中文](README.md)
 
 > ✅ **Status: working** (verified against dsh `0.1.7-rc.2`)
 

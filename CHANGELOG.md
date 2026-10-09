@@ -9,6 +9,8 @@ All notable changes to this package are documented here. The format follows
 
 - README（中文默认 + 英文）补入实拍图 `assets/balance-capsule.png`：会话标题栏工具区里
   余额胶囊与相邻会话工具并排的实际显示效果。
+- 文档：README 语言约定统一为 `README.md`（中文，默认入口）+ `README.en.md`（英文），
+  两版顶部互链；`files` 补入两个 README，使 npm 包内一并分发。
 
 ## 0.4.0 — 2026-09-30
 
