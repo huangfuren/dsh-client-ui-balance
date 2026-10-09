@@ -6,6 +6,8 @@
 
 DeepSeek 平台账户余额展示：向会话标题栏工具区（`conversation.session.header.utilities`）贡献一个入口——与会话其他工具胶囊并排的紧凑余额胶囊，以及可展开的明细面板。胶囊位于标题栏的 flex 行内，因此不会与相邻的会话工具重叠。
 
+![会话标题栏工具区中的余额胶囊（右侧红框内）](assets/balance-capsule.png)
+
 ## 数据是怎么来的
 
 余额取自 DeepSeek 官方接口 `GET https://api.deepseek.com/user/balance`。

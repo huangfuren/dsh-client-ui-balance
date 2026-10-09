@@ -3,6 +3,13 @@
 All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## Unreleased
+
+### Changed
+
+- README（中文默认 + 英文）补入实拍图 `assets/balance-capsule.png`：会话标题栏工具区里
+  余额胶囊与相邻会话工具并排的实际显示效果。
+
 ## 0.4.0 — 2026-09-30
 
 ### Fixed

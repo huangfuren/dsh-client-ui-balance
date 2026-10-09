@@ -6,6 +6,8 @@
 
 DeepSeek Platform account balance display: contributes one entry to the conversation session-header utility row (`conversation.session.header.utilities`) — a compact capsule beside the session's other header tools — with an expandable detail panel. Living in the header's flex row keeps it from ever overlapping the neighboring session tools.
 
+![The balance capsule in the session-header utility row (boxed in red)](assets/balance-capsule.png)
+
 ## Where the data comes from
 
 The balance is read from DeepSeek's own endpoint `GET https://api.deepseek.com/user/balance`.
