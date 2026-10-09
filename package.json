@@ -48,7 +48,9 @@
   },
   "scripts": {
     "bundle": "tsdown",
-    "watch": "tsdown --watch"
+    "watch": "tsdown --watch",
+    "check": "node scripts/check.mjs",
+    "verify": "npm run check"
   },
   "license": "MIT",
   "peerDependencies": {

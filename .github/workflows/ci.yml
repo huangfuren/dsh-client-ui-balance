@@ -1,0 +1,40 @@
+# CI 工作流：每次向 main 分支推送或发起针对 main 的 PR 时，
+# 在多个 Node.js 版本 × 操作系统上校验随包发布的产物。
+name: CI
+
+# 触发条件：
+# - push 到 main 分支
+# - 针对 main 分支的 pull_request
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# 最小权限原则：仅授予读取仓库内容的权限，避免工作流获得写权限令牌。
+permissions:
+  contents: read
+
+jobs:
+  # 校验任务：在矩阵中列出的每个 Node.js 版本 × 操作系统上运行同一套校验。
+  verify:
+    name: ${{ matrix.os }} / Node ${{ matrix.node }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # 即使某个组合失败也不中断其它组合，便于一次看全矩阵结果。
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      # 拉取源码。
+      - uses: actions/checkout@v4
+      # 安装指定版本的 Node。
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      # 刻意不做 install。本仓库的构建链（tsdown + typescript）没有随仓库提交，
+      # CI 无法从 src/ 重建产物；因此这里校验的是**随包发布的 lib/ 产物本身**。
+      # 产物的语法错误是本插件真实发生过的故障类型 —— 手改 lib/ 时最容易漏改一处，
+      # 而语法错误在浏览器里表现为整个插件静默不加载，排查成本很高。
+      - run: npm run verify
