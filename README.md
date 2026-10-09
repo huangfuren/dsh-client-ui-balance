@@ -2,7 +2,7 @@
 
 中文 | [English](README.en.md)
 
-> ✅ **状态：可用**（已在 dsh `0.1.7-rc.2` 实测）
+> ✅ **状态：可用**（已在 dsh `0.1.7-rc.2` 实测，并适配 dsh 0.2.x）
 
 DeepSeek 平台账户余额展示：向会话标题栏工具区（`conversation.session.header.utilities`）贡献一个入口——与会话其他工具胶囊并排的紧凑余额胶囊，以及可展开的明细面板。胶囊位于标题栏的 flex 行内，因此不会与相邻的会话工具重叠。
 
