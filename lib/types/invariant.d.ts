@@ -1,6 +1,6 @@
 /**
- * Package-owned invariant companion for `@deepseek-ai/dsh-client-ui-balance`.
- * @module @deepseek-ai/dsh-client-ui-balance/invariant
+ * Package-owned invariant companion for `dsh-client-ui-balance`.
+ * @module dsh-client-ui-balance/invariant
  */
 import type { Context } from '@deepseek-ai/cordis';
 /** Cordis companion plugin name. */

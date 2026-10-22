@@ -1,13 +1,13 @@
 /**
- * Package-owned invariant companion for `@deepseek-ai/dsh-client-ui-balance`.
- * @module @deepseek-ai/dsh-client-ui-balance/invariant
+ * Package-owned invariant companion for `dsh-client-ui-balance`.
+ * @module dsh-client-ui-balance/invariant
  */
 
 /* jscpd:ignore-start */
 import type { Context } from '@deepseek-ai/cordis'
 import type { InvariantInstaller } from '@deepseek-ai/dsh-invariants'
 
-const PACKAGE_NAME = '@deepseek-ai/dsh-client-ui-balance'
+const PACKAGE_NAME = 'dsh-client-ui-balance'
 
 /** Cordis companion plugin name. */
 export const name = 'client-ui-balance-invariant'
@@ -15,10 +15,10 @@ export const name = 'client-ui-balance-invariant'
 export const inject = ['invariants']
 
 /**
- * No runtime invariant: this package is a read-only consumer of the
- * `llm.balance` RPC. It emits no cordis events, owns no cross-plugin mutable
- * state, and its single session-header registration proves disposal through
- * the HMR-safety spec.
+ * No runtime invariant: this package renders a read-only projection of the
+ * account balance served by its own host half. It emits no cordis events, owns
+ * no cross-plugin mutable state, and its single session-header registration
+ * proves disposal through the HMR-safety spec.
  */
 const install: InvariantInstaller = () => {}
 

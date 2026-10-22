@@ -1,4 +1,4 @@
-# @deepseek-ai/dsh-client-ui-balance
+# dsh-client-ui-balance
 
 中文 | [English](README.en.md)
 
@@ -7,6 +7,16 @@
 DeepSeek 平台账户余额展示：向会话标题栏工具区（`conversation.session.header.utilities`）贡献一个入口——与会话其他工具胶囊并排的紧凑余额胶囊，以及可展开的明细面板。胶囊位于标题栏的 flex 行内，因此不会与相邻的会话工具重叠。
 
 ![会话标题栏工具区中的余额胶囊（右侧红框内）](assets/balance-capsule.png)
+
+## 安装
+
+```sh
+dsh plugin --profile web add github:huangfuren/dsh-client-ui-balance
+```
+
+把 `web` 换成你实际使用的 profile（桌面端为 `desktop`）。装完**重启 dsh**：host 半的同源路由在启动时注册，不重启不会生效。
+
+也可以在插件市场（dsh-market）里搜 `dsh-client-ui-balance`，从详情页一键安装。
 
 ## 数据是怎么来的
 

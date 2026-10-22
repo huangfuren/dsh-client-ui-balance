@@ -5,12 +5,26 @@ All notable changes to this package are documented here. The format follows
 
 ## Unreleased
 
+## 0.4.1 — 2026-10-22
+
 ### Changed
 
+- **包名从 `@deepseek-ai/dsh-client-ui-balance` 改为 `dsh-client-ui-balance`。**
+  `@deepseek-ai/*` 是 DeepSeek 官方 scope，第三方插件不得占用；原包名在 npm 上从未发布
+  （registry 返回 404），也不存在依赖该名字的下游。改动同步到 `cordis.patch.yml` 的 `name`、
+  `lib/client.js` 的客户端模块 id 与 CSS `data-plugin` 标记、`src`/`lib` 的 invariant
+  `PACKAGE_NAME`、`tsdown.config.ts` 的 `clientBundle`。
+- README（中英两版）补入**安装命令**：`dsh plugin --profile web add github:huangfuren/dsh-client-ui-balance`，
+  并注明需重启 dsh 才能让 host 半注册同源路由。
 - README（中文默认 + 英文）补入实拍图 `assets/balance-capsule.png`：会话标题栏工具区里
   余额胶囊与相邻会话工具并排的实际显示效果。
 - 文档：README 语言约定统一为 `README.md`（中文，默认入口）+ `README.en.md`（英文），
   两版顶部互链；`files` 补入两个 README，使 npm 包内一并分发。
+
+### Fixed
+
+- `src/invariant.ts` 与产物里的 invariant 注释仍写着「本包是 `llm.balance` RPC 的只读消费者」，
+  那是 0.3.0 的架构；0.4.0 起数据来自本包自带的 host 半，注释同步更正。
 
 ## 0.4.0 — 2026-09-30
 

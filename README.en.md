@@ -1,4 +1,4 @@
-# @deepseek-ai/dsh-client-ui-balance
+# dsh-client-ui-balance
 
 English | [中文](README.md)
 
@@ -7,6 +7,16 @@ English | [中文](README.md)
 DeepSeek Platform account balance display: contributes one entry to the conversation session-header utility row (`conversation.session.header.utilities`) — a compact capsule beside the session's other header tools — with an expandable detail panel. Living in the header's flex row keeps it from ever overlapping the neighboring session tools.
 
 ![The balance capsule in the session-header utility row (boxed in red)](assets/balance-capsule.png)
+
+## Install
+
+```sh
+dsh plugin --profile web add github:huangfuren/dsh-client-ui-balance
+```
+
+Replace `web` with the profile you actually run (use `desktop` for the desktop app). **Restart dsh afterwards** — the host half registers its same-origin route at startup, so it does not take effect until then.
+
+It is also listed in the plugin market (dsh-market) under `dsh-client-ui-balance`, installable from the detail view.
 
 ## Where the data comes from
 
