@@ -3,7 +3,22 @@
 All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## Unreleased
+## 0.4.2 — 2026-11-06
+
+### Changed
+
+- **移除 invariant 伴生模块（死代码）。** 删除 `src/invariant.ts` 与产物 `lib/invariant.js`，
+  同步去掉 `package.json` 的 `./invariant` 导出、`files` 条目、`@deepseek-ai/dsh-invariants`
+  的 peer 与 dev 声明。理由：dsh `0.2.2-rc.1` 的 asar 里已检索不到 `@deepseek-ai/dsh-invariants`
+  （0 命中），该伴生模块声明的 `inject: ['invariants']` 永远不会被满足，`cordis.patch.yml`
+  也从未插入它 —— 从未参与运行时。删掉后不再对宿主已不存在的包声明 peer，避免宿主做
+  peer 校验时因解析不到该包而告警。
+
+### Added
+
+- **补 `dsh.compatibility.dshReleases` 声明。** 显式列出已验证的宿主版本
+  `0.1.7-rc.2` / `0.2.0-rc.2` / `0.2.1-rc.5` / `0.2.2-rc.1`。该字段供插件市场与兼容性阅读器
+  查看，不参与宿主加载判定（宿主真正强校验的是 `peerDependencies`）。
 
 ## 0.4.1 — 2026-10-22
 
