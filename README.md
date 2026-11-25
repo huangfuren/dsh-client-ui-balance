@@ -31,10 +31,18 @@ dsh plugin --profile web add github:huangfuren/dsh-client-ui-balance
 
 | 半 | 职责 |
 | --- | --- |
-| **host**（`lib/index.js`） | 注册同源路由 `/balance-rpc`；在请求时从凭据服务解析 Key；向 Platform 发起查询；只回传结果 |
-| **client**（`lib/client.js`） | 轮询 `fetch('/balance-rpc')`；渲染胶囊与明细面板 |
+| **host**（`lib/index.js`） | 注册两条同源路由（`/api/dsh-client-ui-balance/balance`、`/api/dsh-client-ui-balance/aliyun`）；在请求时从凭据服务解析 Key；向 Platform / BSS 发起查询；只回传结果 |
+| **client**（`lib/client.js`） | 以 `POST` 调这两条路由；渲染胶囊与明细面板 |
 
 Key 始终留在宿主进程内，跨越边界的只有投影后的快照。
+
+### 为什么路由挂在 `/api/` 之下
+
+路由走宿主的 `ctx.connection.fetch.register` seam，路径因此落在 **`/api/` 认证围栏内**：只有携带页面自身会话的请求才会被应答，本机其它进程直接请求会拿到 **401**，而不是账户余额。
+
+0.4.3 及更早注册在 `webServer` 上、用的是裸路径 `/balance-rpc`。功能正常，但**在围栏之外** —— 本机任何进程一个不带凭证的 `GET` 就能读到余额。0.4.4 把两条路由整体搬进围栏，并改用 seam 约定的 `POST` + `buffered` body。
+
+顺带修掉四处同源问题：响应补 `cache-control: no-store`（否则浏览器可能把已花掉的余额缓存着继续显示）、并发请求做**单飞**（多标签页同时刷新不再成倍打上游）、注册失败 **refuse-quietly**（注册表拒绝时胶囊缺席但插件存活，且不会只上一条路由）、错误信封补插件前缀的 `code`。
 
 ### 与旧版本的区别
 

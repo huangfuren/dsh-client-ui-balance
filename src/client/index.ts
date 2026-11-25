@@ -59,8 +59,15 @@ export interface LlmBalanceView {
   balances?: BalanceWallet[]
 }
 
-/** Route also registered by the node half; kept identical by construction. */
-const BALANCE_ROUTE = '/balance-rpc'
+/**
+ * Routes registered by the node half; both declarations are kept identical by
+ * construction, because a client plugin may not import host values (the build's
+ * purity gate rejects it, and two drifting copies would fail at runtime).
+ *
+ * They live under `/api/`, the host's authenticated fence, and answer `POST`
+ * with a buffered body — the seam's convention for on-demand reads.
+ */
+const BALANCE_ROUTE = '/api/dsh-client-ui-balance/balance'
 
 /**
  * The Aliyun quota route, also registered by the node half.
@@ -68,7 +75,7 @@ const BALANCE_ROUTE = '/balance-rpc'
  * Separate from `BALANCE_ROUTE` because it is a separate read of a separate
  * service: mixing them would make one provider's outage blank the other.
  */
-const ALIYUN_ROUTE = '/aliyun-balance-rpc'
+const ALIYUN_ROUTE = '/api/dsh-client-ui-balance/aliyun'
 
 /**
  * Projected Aliyun quota snapshot produced by the node half.
@@ -118,6 +125,36 @@ export type { BalancePillProps } from './BalancePill.tsx'
  * absence no longer disables the capsule — see the guard inside `apply`.
  */
 export const inject = ['slots', 'locale', 'remote']
+
+/**
+ * Call one on-demand route and always resolve — never reject.
+ *
+ * Three layers, and skipping any of them has a known failure mode:
+ *   1. transport — a non-2xx (401 from the fence, 404 from an unarmed route)
+ *      must become a readable reason instead of a JSON parse error;
+ *   2. envelope — `ok` decides whether `value` may be read at all;
+ *   3. payload — the capsules type-check every field they render, so a
+ *      half-shaped reply degrades to "no figure" rather than a blank panel.
+ * @param route - absolute path of the registered route.
+ * @param signal - aborts a superseded read.
+ * @returns the envelope, with a failure synthesized on any throw.
+ */
+async function callRoute<T>(route: string, signal?: AbortSignal): Promise<RemoteResult<T>> {
+  try {
+    const response = await fetch(route, {
+      method: 'POST',
+      ...(signal === undefined ? {} : { signal }),
+      headers: { 'content-type': 'application/json' },
+      body: '{}',
+    })
+    if (!response.ok) {
+      return { ok: false, error: { message: `${route} answered HTTP ${String(response.status)}` } }
+    }
+    return await response.json() as RemoteResult<T>
+  } catch (error: unknown) {
+    return { ok: false, error: { message: error instanceof Error ? error.message : String(error) } }
+  }
+}
 
 /**
  * Client plugin body: register the dictionaries and the session-header
@@ -213,38 +250,17 @@ export function apply(ctx: ClientContext): void {
     /* contained: invalidation is an optimization, not a requirement */
   }
 
-  // The balance snapshot now arrives over this plugin's own same-origin Host
-  // route rather than a Host Remote: the Platform endpoint answers no
-  // cross-origin reads, and the API key must stay in the Host process.
-  // The returned envelope keeps the historical `RemoteResult<LlmBalanceView>`
-  // shape, so BalancePill needs no change at all.
+  // The balance snapshot arrives over this plugin's own same-origin Host route
+  // rather than a Host Remote: the Platform endpoint answers no cross-origin
+  // reads, and the API key must stay in the Host process. The reply keeps the
+  // historical `RemoteResult` envelope, so the capsules need no change.
   const query = (signal?: AbortSignal): Promise<RemoteResult<LlmBalanceView>> =>
-    fetch(BALANCE_ROUTE, {
-      method: 'GET',
-      ...(signal === undefined ? {} : { signal }),
-      headers: { accept: 'application/json' },
-    }).then(async (response) => {
-      const payload = await response.json() as RemoteResult<LlmBalanceView>
-      return payload
-    }).catch((error: unknown) => ({
-      ok: false,
-      error: { message: error instanceof Error ? error.message : String(error) },
-    }) as RemoteResult<LlmBalanceView>)
+    callRoute<LlmBalanceView>(BALANCE_ROUTE, signal)
 
   // Same envelope, same route discipline — a different upstream and a
   // different signer live entirely in the node half.
   const aliyunQuery = (signal?: AbortSignal): Promise<RemoteResult<AliyunSnapshot>> =>
-    fetch(ALIYUN_ROUTE, {
-      method: 'GET',
-      ...(signal === undefined ? {} : { signal }),
-      headers: { accept: 'application/json' },
-    }).then(async (response) => {
-      const payload = await response.json() as RemoteResult<AliyunSnapshot>
-      return payload
-    }).catch((error: unknown) => ({
-      ok: false,
-      error: { message: error instanceof Error ? error.message : String(error) },
-    }) as RemoteResult<AliyunSnapshot>)
+    callRoute<AliyunSnapshot>(ALIYUN_ROUTE, signal)
 
   ctx.slots.inject('conversation.session.header.utilities', () => ctx.slots.register({
     name: 'conversation.session.header.utilities',

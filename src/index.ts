@@ -14,17 +14,30 @@
  *      secret into part of every page load, so the reference is resolved here,
  *      in the process that already owns it, and only the *result* crosses back.
  *
- * Route registration mirrors the discipline learned in the background plugin:
- * `webServer` is frequently not yet available when this `apply` runs, so the
- * registration retries on `service-added` and on a bounded poll. Registering
- * once and missing silently manifests as a pill that never loads with no error
- * anywhere, which is exactly the failure being avoided.
+ * Route registration goes through the host's authenticated seam,
+ * `ctx.connection.fetch.register`, and therefore lands under `/api/`. An
+ * earlier revision registered on `webServer` with a bare `/balance-rpc` path:
+ * that worked, but it sat outside the fence, so every process on the machine
+ * could read the account balance with one unauthenticated GET. The seam also
+ * subsumes the old `service-added` listener and bounded poll — `ctx.inject`
+ * runs once the dependency exists and owns the disposer.
  */
 import { createHash, createHmac, randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 
-/** Same-origin route the browser half polls. */
-const BALANCE_ROUTE = '/balance-rpc'
+/**
+ * Same-origin routes the browser half polls.
+ *
+ * Both live under `/api/`, the host's authenticated fence: the route only
+ * answers requests carrying the page's own session, so a bare request from
+ * another process gets 401 instead of somebody's balance. The previous bare
+ * `/balance-rpc` sat outside that fence and answered anyone who asked.
+ *
+ * `POST` with a buffered body is the seam's convention for on-demand reads.
+ * The path is declared again on the browser side — a client plugin may not
+ * import host values — and the two copies are kept identical by construction.
+ */
+const BALANCE_ROUTE = '/api/dsh-client-ui-balance/balance'
 /**
  * Credential reference Settings writes the DeepSeek key under. A plain string
  * is used rather than importing `credentialRef`: that helper is a brand-only
@@ -60,17 +73,42 @@ interface BalanceSnapshot {
 }
 
 /**
- * Send one JSON response and end it. Kept local so this half depends on no
- * shared web helper whose location may move between releases.
- * @param res - raw Node response.
- * @param status - HTTP status.
+ * One JSON reply, tagged `no-store`.
+ *
+ * `no-store` is not decoration: freshness is this plugin's own cache plus BSS
+ * state, never an HTTP cache, so a spent coupon must not come back out of the
+ * browser's cache looking unspent.
  * @param body - JSON-serializable payload.
+ * @returns a response the seam can hand back unchanged.
  */
-function sendJson(res: { writeHead(status: number, headers?: Record<string, string>): unknown; end(body?: string): unknown },
-  status: number, body: unknown): void {
-  const payload = JSON.stringify(body)
-  res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'content-length': Buffer.byteLength(payload) })
-  res.end(payload)
+function jsonReply(body: unknown): Response {
+  return Response.json(body, { headers: { 'cache-control': 'no-store' } })
+}
+
+/**
+ * @param code - stable, plugin-prefixed failure code.
+ * @param message - human-readable detail.
+ * @returns a failed envelope, still HTTP 200 so the capsule keeps rendering.
+ */
+function jsonFailure(code: string, message: string): Response {
+  return jsonReply({ ok: false, error: { code, message } })
+}
+
+/**
+ * How this Host exposes the authenticated route seam, declared structurally.
+ *
+ * Every level is optional because a deployment may predate the service or ship
+ * a shape without it; each level is probed with `typeof` before use.
+ */
+interface ConnectionHostFace {
+  fetch?: {
+    register?(route: {
+      path: string
+      methods: readonly string[]
+      requestBody: 'buffered'
+      fetch: (request: Request) => Response | Promise<Response>
+    }): () => void
+  }
 }
 
 /* ------------------------------------------------------------------ *
@@ -101,8 +139,8 @@ function sendJson(res: { writeHead(status: number, headers?: Record<string, stri
  * restart.
  * ------------------------------------------------------------------ */
 
-/** Same-origin route the Aliyun capsule polls. */
-const ALIYUN_ROUTE = '/aliyun-balance-rpc'
+/** Same-origin route the Aliyun capsule polls; see BALANCE_ROUTE for the fence. */
+const ALIYUN_ROUTE = '/api/dsh-client-ui-balance/aliyun'
 /** Credential references the RAM AccessKey pair is stored under. */
 const ALIYUN_KEY_ID_REF = 'ALIYUN_ACCESS_KEY_ID'
 const ALIYUN_KEY_SECRET_REF = 'ALIYUN_ACCESS_KEY_SECRET'
@@ -459,11 +497,23 @@ function projectCoupons(body: Record<string, unknown>): {
 }
 
 /**
- * Read the Aliyun quota snapshot, serving a cached copy inside the cache window.
+ * One Aliyun read shared by every concurrent caller.
  *
- * Two calls, each independently guarded: a coupon failure must not hide the
- * cash wallet and vice versa. Both failing throws, and the route reports it
- * in-band like the DeepSeek path does.
+ * The capsule polls from every open tab, and each tab also refreshes on focus
+ * and visibility, so N tabs used to mean N simultaneous BSS calls the moment
+ * the cache went stale — exactly the pattern that trips a QPS ceiling and
+ * surfaces as "query failed" rather than "rate limited". Coalescing fixes it
+ * at the source instead of raising the cache window and going stale.
+ */
+let aliyunInFlight: Promise<AliyunSnapshot> | undefined
+
+/**
+ * Read the Aliyun quota snapshot, serving a cached copy inside the cache window
+ * and joining an in-flight read when one is already running.
+ *
+ * A forced refresh joins the in-flight read rather than starting a second one:
+ * the read already in progress began after the cache did, so it is by
+ * definition fresher than what `force` was trying to escape.
  * @param ctx - this plugin's Host context.
  * @param force - bypass the cache (the panel's refresh button).
  * @returns the projected snapshot.
@@ -472,6 +522,30 @@ async function readAliyunBalance(ctx: Context, force = false): Promise<AliyunSna
   const cached = aliyunCache
   if (!force && cached !== undefined && Date.now() - cached.at < ALIYUN_CACHE_MS) return cached.value
 
+  const inFlight = aliyunInFlight
+  if (inFlight !== undefined) return await inFlight
+
+  const pending = readAliyunBalanceUncached(ctx)
+  aliyunInFlight = pending
+  try {
+    return await pending
+  } finally {
+    // Only clear our own read; a later caller may already own the slot.
+    if (aliyunInFlight === pending) aliyunInFlight = undefined
+  }
+}
+
+/**
+ * The actual read behind {@link readAliyunBalance}; callers go through the
+ * wrapper so cache and single-flight discipline cannot be bypassed.
+ *
+ * Two calls, each independently guarded: a coupon failure must not hide the
+ * cash wallet and vice versa. Both failing throws, and the route reports it
+ * in-band like the DeepSeek path does.
+ * @param ctx - this plugin's Host context.
+ * @returns the projected snapshot.
+ */
+async function readAliyunBalanceUncached(ctx: Context): Promise<AliyunSnapshot> {
   const credentials = await resolveAliyunCredentials(ctx)
   if (credentials === undefined) {
     const unconfigured: AliyunSnapshot = { configured: false, currency: 'CNY', fetchedAt: new Date().toISOString() }
@@ -593,83 +667,76 @@ async function readBalance(ctx: Context): Promise<BalanceSnapshot> {
 }
 
 /**
- * Build the request handler shared by both routes: method gate, one read, and
- * an always-200 JSON envelope. Failures are reported *in-band* — a non-2xx
- * would leave the capsule with nothing to render, while this keeps its
- * existing error affordance ("query failed" plus the reason in the tooltip)
- * working unchanged, for both providers.
+ * Build the request handler shared by both routes: one read, one envelope.
+ *
+ * Failures stay HTTP 200 and travel in-band: a non-2xx would leave the capsule
+ * with nothing to render, whereas this keeps its existing error affordance
+ * ("query failed" plus the reason in the tooltip) working unchanged.
+ *
+ * The error carries a plugin-prefixed `code` next to the human message: the
+ * client renders the message, while the code is what a log search or a future
+ * branch on failure kind can rely on. A bare message string is not a contract.
  * @param read - the snapshot reader for one route.
- * @returns an HTTP handler.
+ * @param failureCode - stable, plugin-prefixed code for a failed read.
+ * @returns a handler taking the buffered request and answering with JSON.
  */
 function makeHandler(
   read: () => Promise<unknown>,
-): (req: { method?: string }, res: never) => void {
-  return (req, res) => {
-    void (async () => {
-      try {
-        if (req.method !== 'GET' && req.method !== 'HEAD') {
-          sendJson(res, 405, { ok: false, error: { message: 'method not allowed' } })
-          return
-        }
-        const snapshot = await read()
-        sendJson(res, 200, { ok: true, value: snapshot })
-      } catch (error: unknown) {
-        sendJson(res, 200, {
-          ok: false,
-          error: { message: error instanceof Error ? error.message : String(error) },
-        })
-      }
-    })()
+  failureCode: string,
+): (request: Request) => Promise<Response> {
+  return async () => {
+    try {
+      return jsonReply({ ok: true, value: await read() })
+    } catch (error: unknown) {
+      return jsonFailure(failureCode, error instanceof Error ? error.message : String(error))
+    }
   }
 }
 
 /**
- * Register the balance route, retrying until the web server exists.
+ * Arm both routes once the `connection` service exists.
+ *
+ * `ctx.inject` replaces the old `service-added` listener plus bounded poll: it
+ * runs when the dependency is present, and the effects it owns unregister the
+ * routes when the scope goes away, so no dangling route survives an unload.
  * @param ctx - this plugin's Host context.
  */
 function start(ctx: Context): void {
-  const disposers: Array<() => void> = []
-  let disposed = false
-  let registered = false
-
-  ctx.effect(() => () => {
-    disposed = true
-    for (const dispose of disposers) dispose()
-  }, 'ui-balance: host route lifetime')
-
-  const register = (): void => {
-    if (registered || disposed) return
-    const webServer = ctx.get('webServer') as
-      { register(entry: { kind: 'exact'; path: string; handler(req: unknown, res: never): void }): () => void } | undefined
-    if (webServer === undefined) return
-    registered = true
-    // Both routes land together: one shared retry/lifetime, so a capsule can
-    // never end up half-wired (one provider live, the other silently dead).
-    disposers.push(webServer.register({
-      kind: 'exact',
-      path: BALANCE_ROUTE,
-      handler: makeHandler(() => readBalance(ctx)),
-    }))
-    disposers.push(webServer.register({
-      kind: 'exact',
-      path: ALIYUN_ROUTE,
-      handler: makeHandler(() => readAliyunBalance(ctx)),
-    }))
+  ctx.inject(['connection'], (scope) => {
+    const connection = scope.get('connection') as ConnectionHostFace | undefined
+    // Shape check, then bind at extraction: the method is handed to `effect`,
+    // which invokes it later, so it must not lose its owner along the way.
+    const register = typeof connection?.fetch?.register === 'function'
+      ? connection.fetch.register.bind(connection.fetch)
+      : undefined
+    if (register === undefined) {
+      console.error('[ui-balance] connection.fetch.register unavailable; capsules stay absent')
+      return
+    }
+    try {
+      // Both routes land together, so a capsule can never end up half-wired
+      // (one provider live, the other silently dead).
+      scope.effect(() => register({
+        path: BALANCE_ROUTE,
+        methods: ['POST'],
+        requestBody: 'buffered',
+        fetch: makeHandler(() => readBalance(ctx), 'ui-balance/balance-read-failed'),
+      }), 'ui-balance: balance route')
+      scope.effect(() => register({
+        path: ALIYUN_ROUTE,
+        methods: ['POST'],
+        requestBody: 'buffered',
+        fetch: makeHandler(() => readAliyunBalance(ctx), 'ui-balance/aliyun-read-failed'),
+      }), 'ui-balance: aliyun route')
+    } catch (error: unknown) {
+      // refuse-quietly: a rejecting registry must not take this plugin, or the
+      // capsule beside it, down. The routes simply stay absent.
+      console.error('[ui-balance] route registration refused: '
+        + (error instanceof Error ? error.message : String(error)))
+      return
+    }
     console.info(`[ui-balance] balance routes ready at ${BALANCE_ROUTE} and ${ALIYUN_ROUTE}`)
-  }
-
-  register()
-  if (registered || disposed) return
-  ctx.on('service-added', (name: string) => { if (name === 'webServer') register() })
-  let tries = 0
-  const attempt = (): void => {
-    if (disposed || registered) return
-    register()
-    tries += 1
-    if (!registered && tries < 40) setTimeout(attempt, 500)
-    else if (!registered) console.error('[ui-balance] webServer never became available; balance route not registered')
-  }
-  setTimeout(attempt, 500)
+  })
 }
 
 /**

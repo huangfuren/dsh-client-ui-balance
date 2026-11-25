@@ -1,7 +1,7 @@
 {
   "name": "dsh-client-ui-balance",
   "description": "Account-quota capsules: conversation session-header utilities reading the DeepSeek Platform balance and the Aliyun coupon/quota through the package's own same-origin Host routes, each with an expandable detail panel",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "engines": {
     "node": ">=22.19",
     "dsh": ">=0.1.5-rc.2 <1.0.0 || >=0.2.0-rc.1 <1.0.0"

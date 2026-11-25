@@ -3,6 +3,35 @@
 All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.4.4 — 2026-11-25
+
+### Security
+
+- **两条路由搬进 `/api/` 认证围栏。** 0.4.3 及更早在 `webServer` 上注册裸路径
+  `/balance-rpc` / `/aliyun-balance-rpc`：功能正常，但落在宿主认证围栏**之外**，本机任何进程
+  一个不带凭证的 `GET` 就能读到 DeepSeek 余额与阿里云代金券余额（实测：`/api/*` 返回 401，
+  这两条返回 200）。现在改走 `ctx.connection.fetch.register`，路径为
+  `/api/dsh-client-ui-balance/balance` 与 `/api/dsh-client-ui-balance/aliyun`，方法 `POST`、
+  body `buffered`，与宿主自己的路由同一层鉴权。
+
+### Fixed
+
+- **响应缺 `cache-control: no-store`。** 浏览器可能缓存上一份余额，券已花掉而界面仍显示旧数字。
+- **并发无单飞。** 多标签页 + 聚焦/可见性刷新会在缓存过期的瞬间同时打上游，触发 BSS 的 QPS 限制
+  并表现为「查询失败」。现在并发请求共享同一次在途读（实测 3 并发 → 上游只打 2 次）。
+- **注册动作未兜底。** `register` 抛错会从 `setTimeout` 里逃出 `apply` 的 try/catch，成为宿主进程
+  的未捕获异常；且可能只上了一条路由。现在 refuse-quietly（失败即缺席，插件存活）并回滚已注册的
+  那一半。
+- **错误信封缺可判别的类型。** 补插件前缀码 `ui-balance/balance-read-failed` /
+  `ui-balance/aliyun-read-failed`，`message` 保持人类可读。
+
+### Changed
+
+- 路由注册改用 `ctx.inject(['connection'], …)` + `scope.effect(() => register(...))`，取代原先的
+  `service-added` 监听加 30 次轮询；方法在取用处 `bind`，seam 形状按 `typeof` 逐层探测。
+- 客户端调用集中在 `callRoute()`：先查传输层状态（401/404 变成可读原因而不是 JSON 解析错），
+  再查信封 `ok`，最后才采纳载荷。
+
 ## 0.4.3 — 2026-11-25
 
 ### Added
