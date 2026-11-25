@@ -1,10 +1,10 @@
 /**
- * Real-time DeepSeek Platform balance plugin, browser half: contributes one
- * `conversation.session.header.utilities` entry — a compact capsule beside the
- * session's other header tools, polling this package's own same-origin Host
- * route on a fixed cadence plus visibility/focus changes and pushed
- * invalidations. The Host keeps the credential; this half only ever shows the
- * projected snapshot.
+ * Real-time account-quota plugin, browser half: contributes two
+ * `conversation.session.header.utilities` entries — a compact DeepSeek capsule
+ * and, beside it, an Aliyun coupon/quota capsule. Each polls its own
+ * same-origin Host route on a fixed cadence plus visibility/focus changes and
+ * pushed invalidations. The Host keeps the credentials; this half only ever
+ * shows the projected snapshots.
  *
  * Data path (rewritten for a Host that no longer ships `remote.llm.balance`):
  * the Platform endpoint answers no cross-origin reads and must not see the key,
@@ -19,6 +19,7 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 import { BalancePill } from './BalancePill.tsx'
 import type { BalanceInjected } from './BalancePill.tsx'
+import { AliyunPill } from './AliyunPill.tsx'
 import { en, NS, zh, type BalanceKey } from './locales.ts'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale), the
 // conversation session-header SlotMap merge (ui-conversation), and the Remote
@@ -60,6 +61,46 @@ export interface LlmBalanceView {
 
 /** Route also registered by the node half; kept identical by construction. */
 const BALANCE_ROUTE = '/balance-rpc'
+
+/**
+ * The Aliyun quota route, also registered by the node half.
+ *
+ * Separate from `BALANCE_ROUTE` because it is a separate read of a separate
+ * service: mixing them would make one provider's outage blank the other.
+ */
+const ALIYUN_ROUTE = '/aliyun-balance-rpc'
+
+/**
+ * Projected Aliyun quota snapshot produced by the node half.
+ *
+ * Every figure is optional: a partial read (coupons answered, cash wallet
+ * failed) still renders what arrived. `configured: false` means no AccessKey
+ * is stored yet — an absence, not an error.
+ */
+export interface AliyunSnapshot {
+  /** False until both halves of the AccessKey pair are stored. */
+  configured: boolean
+  /** Wallet currency; `CNY` in practice. */
+  currency: string
+  /** Sum of every usable coupon's remaining balance. */
+  couponBalance?: string
+  /** Sum of those coupons' face value. */
+  couponNominal?: string
+  /** How many usable coupons the sum covers. */
+  couponCount?: number
+  /** Earliest expiry among the usable coupons (ISO 8601). */
+  couponExpiry?: string
+  /** Cash wallet, usually 0.00 on a coupon-funded account. */
+  cashAmount?: string
+  /** Aliyun's own "available amount" (cash + coupons + credit). */
+  availableAmount?: string
+  /** ISO timestamp of this successful read. */
+  fetchedAt: string
+  /** Detail for a partial failure; the snapshot still renders. */
+  error?: string
+  /** Detail when the coupon call specifically failed. */
+  couponError?: string
+}
 
 /** Result envelope, shaped like the old Remote answers. */
 export type RemoteResult<T> =
@@ -190,10 +231,36 @@ export function apply(ctx: ClientContext): void {
       error: { message: error instanceof Error ? error.message : String(error) },
     }) as RemoteResult<LlmBalanceView>)
 
+  // Same envelope, same route discipline — a different upstream and a
+  // different signer live entirely in the node half.
+  const aliyunQuery = (signal?: AbortSignal): Promise<RemoteResult<AliyunSnapshot>> =>
+    fetch(ALIYUN_ROUTE, {
+      method: 'GET',
+      ...(signal === undefined ? {} : { signal }),
+      headers: { accept: 'application/json' },
+    }).then(async (response) => {
+      const payload = await response.json() as RemoteResult<AliyunSnapshot>
+      return payload
+    }).catch((error: unknown) => ({
+      ok: false,
+      error: { message: error instanceof Error ? error.message : String(error) },
+    }) as RemoteResult<AliyunSnapshot>)
+
   ctx.slots.inject('conversation.session.header.utilities', () => ctx.slots.register({
     name: 'conversation.session.header.utilities',
     id: 'api-balance',
     order: 10,
     inject: (_sessionId) => ({ query, t, hooks: { balance: tickStore } }),
   }, BalancePill))
+
+  // Second, independent entry. Registered through its own `inject` call rather
+  // than a second `register` inside the one above, so a failure to place this
+  // capsule cannot take the DeepSeek capsule with it (and vice versa): dsh
+  // reports a crashed slot entry per entry, not per plugin.
+  ctx.slots.inject('conversation.session.header.utilities', () => ctx.slots.register({
+    name: 'conversation.session.header.utilities',
+    id: 'aliyun-quota',
+    order: 11,
+    inject: (_sessionId) => ({ query: aliyunQuery, t, hooks: { aliyun: tickStore } }),
+  }, AliyunPill))
 }

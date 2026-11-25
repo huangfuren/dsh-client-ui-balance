@@ -3,6 +3,31 @@
 All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.5.0 — 2026-11-25
+
+### Added
+
+- **阿里云额度胶囊。** 会话标题栏在 DeepSeek 余额胶囊旁新增第二个胶囊，显示阿里云账户的
+  代金券剩余（学生 300 元那类券就在这里），点开可看到面额、张数、到期日、现金余额与可用额度。
+  两个胶囊各自独立注册（`api-balance` #10 / `aliyun-quota` #11），任一失败或未配置都不会
+  影响另一个。
+- **Host 半边新增 `/aliyun-balance-rpc` 同源路由**，在宿主机进程内用 RAM AccessKey 调阿里云
+  BSS OpenApi：`QueryCashCoupons`（代金券余额 `Balance`、面额 `NominalValue`、到期、状态）与
+  `QueryAccountBalance`（现金 / 可用 / 信控额度）。AK 全程留在宿主机，浏览器只拿到数字。
+- **签名按 ACS3-HMAC-SHA256（V3）实现**，并对签名类拒绝保留 V1（HMAC-SHA1 查询签名）兜底；
+  该兜底只在签名类错误码上触发，权限类错误（如缺 `bss:DescribeCoupons`）直接原样上报，
+  不会被伪装成重试失败。
+- **凭据引用 `ALIYUN_ACCESS_KEY_ID` / `ALIYUN_ACCESS_KEY_SECRET`**，与 `DEEPSEEK_API_KEY`
+  同一套凭据服务，逐请求解析，轮换密钥无需重启。
+
+### Notes
+
+- 只统计 `Status: Available` 的代金券：过期或作废的券 `Balance` 字段仍然有值，一并相加会高估
+  可用额度。
+- 宿主机侧对阿里云结果缓存 60 秒，浏览器侧轮询 120 秒 —— 券的状态最细也是按小时变，避免
+  把轮询变成 BSS 的无效调用。
+- 未配置 AK 时胶囊显示「未配置 AK」并给出配置提示，不报错。
+
 ## 0.4.2 — 2026-11-06
 
 ### Changed

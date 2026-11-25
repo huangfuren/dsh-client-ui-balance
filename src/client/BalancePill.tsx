@@ -34,8 +34,11 @@ export type BalancePillProps = PropsRuntime<'conversation.session.header.utiliti
  * Format one provider decimal with the currency when the code is a valid
  * Intl currency; otherwise fall back to `CODE value` so a bespoke provider
  * currency never throws.
+ *
+ * Exported because the Aliyun capsule renders amounts in exactly the same way;
+ * two formatters would eventually disagree about rounding or symbol width.
  */
-function formatAmount(value: string, currency: string): string {
+export function formatAmount(value: string, currency: string): string {
   try {
     return new Intl.NumberFormat(undefined, {
       style: 'currency',

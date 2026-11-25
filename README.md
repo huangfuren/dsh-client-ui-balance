@@ -46,6 +46,36 @@ Key 始终留在宿主进程内，跨越边界的只有投影后的快照。
 
 在 dsh **设置 → 偏好设置 → 模型提供方 → 编辑 → 填写 API Key** 中配置 DeepSeek 的 Key（存储为 `DEEPSEEK_API_KEY` 引用）。未配置 Key 时，路由返回 `{ supported: false }`，胶囊显示弱化的占位文案而非报错。
 
+## 阿里云额度胶囊（0.5.0 起）
+
+标题栏在 DeepSeek 胶囊旁多一个胶囊，显示阿里云账户的**代金券剩余** —— 学生认证送的 300 元那类
+券就在这里，主数字是券余额，现金钱包另起一行（券付账户的现金通常恒为 0.00，先读它会永远显示零）。
+两个胶囊各自注册（`api-balance` #10 / `aliyun-quota` #11），任一失败或未配置都不影响另一个。
+
+| 数据 | 来源 |
+| --- | --- |
+| 代金券剩余 / 面额 / 到期 / 状态 | BSS OpenApi `QueryCashCoupons` → `Data.CashCoupon[]` 的 `Balance` / `NominalValue` / `ExpiryTime` / `Status` |
+| 现金余额 / 可用额度 / 信控额度 | BSS OpenApi `QueryAccountBalance` → `AvailableCashAmount` / `AvailableAmount` / `CreditAmount` |
+
+只累加 `Status: Available` 的券。过期或作废的券 `Balance` 字段**仍然有值**，一并相加会高估可用额度，
+所以被显式排除。
+
+### 配置
+
+需要一对 **RAM AccessKey**（注意：不是百炼那个 `sk-` 开头的 API Key，它只能调模型、查不了账），
+分别存成两个凭据引用：
+
+- `ALIYUN_ACCESS_KEY_ID`
+- `ALIYUN_ACCESS_KEY_SECRET`
+
+RAM 子账号授予 `AliyunBSSReadOnlyAccess` 即可（已含 `bss:DescribeCoupons`）。两个引用都存在且非空时
+胶囊才会查询；缺任一项时显示「未配置 AK」并给出配置提示，不报错，也不缓存该状态 —— 存好之后下一次
+轮询就能看到数字。
+
+签名按 **ACS3-HMAC-SHA256（V3）** 实现，并对签名类拒绝（`SignatureDoesNotMatch` 等）保留 V1
+（HMAC-SHA1 查询签名）兜底。该兜底只在签名类错误上触发：权限类错误（如缺 `bss:DescribeCoupons`）
+原样上报，不会被重试伪装成另一个失败。
+
 ## 刷新策略
 
 - 固定 **60 秒**轮询
